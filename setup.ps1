@@ -278,8 +278,8 @@ $templateFile = $destTemplate
 $launchFile   = Join-Path $AnkimonDir '.vscode\launch.json'
 
 $content = Get-Content -Path $templateFile -Raw
-$content = $content.Replace('$PROGRAM_PATH$', "$($VenvDir)\Scripts\anki.exe")
-$content = $content.Replace('$DATA_DIR$',      $AnkiBase)
+$content = $content.Replace('$PROGRAM_PATH$', "$($VenvDir)\Scripts\anki.exe".Replace('\', '\\'))
+$content = $content.Replace('$DATA_DIR$',      $AnkiBase.Replace('\', '\\'))
 $content | Set-Content -Path $launchFile -Encoding UTF8
 
 Write-Host "launch.json configured at: $launchFile" -ForegroundColor Green
@@ -302,7 +302,7 @@ $null = Read-Host
 Write-Host ""
 Write-Host "--- STEP 2: Select the Python Interpreter ---" -ForegroundColor $YELLOW
 Write-Host "This is a crucial step. We need to tell VS Code to use the Python from our new virtual environment."
-Write-Host "1. In VS Code, press " -NoNewline
+Write-Host "1. In VS Code, press Ctrl+P and search for 'init', then open the __init__.py file. Then press" -NoNewline
 Write-Host "Ctrl+Shift+P" -ForegroundColor $CYAN -NoNewline
 Write-Host " to open the Command Palette."
 Write-Host "2. Type " -NoNewline
@@ -310,7 +310,7 @@ Write-Host "Python: Select Interpreter" -ForegroundColor $CYAN -NoNewline
 Write-Host " and press Enter."
 Write-Host "3. A list of Python interpreters will appear. Click on " -NoNewline
 Write-Host "'Enter interpreter path...'" -ForegroundColor $CYAN
-Write-Host "4. Paste the following path into the input box and press Enter:"
+Write-Host "4. Press 'Find...', then select the file below:"
 Write-Host "   $($VenvDir)\Scripts\python.exe" -ForegroundColor $CYAN
 Write-Host ""
 Write-Host "After this, you should see the correct Python version in the bottom-right corner of VS Code."

@@ -328,10 +328,11 @@ read -r < /dev/tty
 echo
 echo -e "${YELLOW}--- STEP 2: Select the Python Interpreter ---${NC}"
 echo "This is a crucial step. We need to tell VS Code to use the Python from our new virtual environment."
-echo "1. In VS Code, press ${CYAN}Ctrl+Shift+P${NC} (or ${CYAN}Cmd+Shift+P${NC} on macOS) to open the Command Palette."
-echo "2. Type ${CYAN}Python: Select Interpreter${NC} and press Enter."
-echo "3. A list of Python interpreters will appear. Click on ${CYAN}'Enter interpreter path...'${NC}"
-echo "4. Paste the following path into the input box and press Enter:"
+echo "1. In VS Code, press ${CYAN}Ctrl+P${NC} (or ${CYAN}Cmd+P${NC} on macOS) and search for 'init', then open the __init__.py file."
+echo "2. Press ${CYAN}Ctrl+Shift+P${NC} (or ${CYAN}Cmd+Shift+P${NC} on macOS) to open the Command Palette."
+echo "3. Type ${CYAN}Python: Select Interpreter${NC} and press Enter."
+echo "4. A list of Python interpreters will appear. Click on ${CYAN}'Enter interpreter path...'${NC}"
+echo "5. Press 'Find...', then select the file below:"
 echo -e "   ${CYAN}$VENV_DIR/bin/python${NC}"
 echo
 echo "After this, you should see the correct Python version in the bottom-right corner of VS Code."
