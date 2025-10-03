@@ -162,27 +162,47 @@ if (Test-Path 'requirements.txt') {
 Write-Host 'Virtual env      : Active in this session' -ForegroundColor Green
 Write-Host "======================================`n" -ForegroundColor Cyan
 
-# Ankimon Add-on Installation & launch.json Generation
+# Add-on Installation & launch.json Generation
 
 Write-Host ""
-Write-Host "Ankimon Add-on Installation Mode" -ForegroundColor Cyan
+Write-Host "Custom Add-on Configuration" -ForegroundColor Cyan
+$CUSTOM_ADDON_CHOICE = Read-Host "Do you want to install an addon other than Ankimon Experimental? [y/N]"
+
+$IS_ANKIMON = $true
+if ($CUSTOM_ADDON_CHOICE -eq 'y' -or $CUSTOM_ADDON_CHOICE -eq 'Y') {
+    $IS_ANKIMON = $false
+    Write-Host ""
+    Write-Host "Enter custom addon details:" -ForegroundColor Yellow
+    $ADDON_REPO_URL = Read-Host "GitHub repository URL:"
+    $ADDON_SRC_PATH = Read-Host "Relative path to addon source folder (e.g., src\Ankimon, use backslashes):"
+    $ADDON_FOLDER_NAME = Read-Host "Addon folder name in addons21 (e.g., 1908235722):"
+    $ADDON_NAME = "Custom Addon"
+} else {
+    $ADDON_REPO_URL = "https://github.com/h0tp-ftw/ankimon.git"
+    $ADDON_SRC_PATH = "src\Ankimon"
+    $ADDON_FOLDER_NAME = "1908235722"
+    $ADDON_NAME = "Ankimon"
+}
+
+Write-Host ""
+Write-Host "$ADDON_NAME Add-on Installation Mode" -ForegroundColor Cyan
 Write-Host "1) Native Anki installation (detect and use your system’s addons21). This will use your existing Anki installation for all the files and addons." -ForegroundColor Yellow
 Write-Host "2) Separate Anki installation (you specify a base directory). This will make an entirely new Anki installation, separate from your normal Anki installation." -ForegroundColor Yellow
 Write-Host "Both options are good. 1. is more convenient and mimics your actual installation, and 2. is isolated from your install, and messing up your addon will not affect your normal installation." -ForegroundColor Yellow
 Write-Host ""
 $MODE = Read-Host 'Select [1 or 2]'
 
-# Default Ankimon clone location
-$DefaultAnkimon = Join-Path $Documents 'ankimon'
-$AnkimonDirInput = Read-Host "Press Enter to clone Ankimon under [$DefaultAnkimon], or type custom path"
-$AnkimonDir = if ([string]::IsNullOrWhiteSpace($AnkimonDirInput)) { $DefaultAnkimon } else { $AnkimonDirInput }
-if (-not (Test-Path $AnkimonDir)) { New-Item -ItemType Directory -Path $AnkimonDir | Out-Null }
-if (-not (Test-Path (Join-Path $AnkimonDir '.git'))) {
-    Write-Host "Cloning Ankimon into $AnkimonDir…" -ForegroundColor Green
-    git clone https://github.com/h0tp-ftw/ankimon.git $AnkimonDir
+# Default addon clone location
+$DefaultAddonCloneDir = Join-Path $Documents ($ADDON_REPO_URL.Split('/')[-1].Replace('.git',''))
+$AddonCloneDirInput = Read-Host "Press Enter to clone $ADDON_NAME under [$DefaultAddonCloneDir], or type custom path"
+$AddonCloneDir = if ([string]::IsNullOrWhiteSpace($AddonCloneDirInput)) { $DefaultAddonCloneDir } else { $AddonCloneDirInput }
+if (-not (Test-Path $AddonCloneDir)) { New-Item -ItemType Directory -Path $AddonCloneDir | Out-Null }
+if (-not (Test-Path (Join-Path $AddonCloneDir '.git'))) {
+    Write-Host "Cloning $ADDON_NAME into $AddonCloneDir…" -ForegroundColor Green
+    git clone $ADDON_REPO_URL $AddonCloneDir
 } else {
-    Write-Host "Updating existing Ankimon repo…" -ForegroundColor Yellow
-    Push-Location $AnkimonDir
+    Write-Host "Updating existing $ADDON_NAME repo…" -ForegroundColor Yellow
+    Push-Location $AddonCloneDir
     git pull
     Pop-Location
 }
@@ -207,7 +227,7 @@ if ($MODE -eq '1') {
         }
     }
     if (-not $AddonsDir) {
-        Write-Host "Could not auto-detect addons21. It should contain folders like '1908235722' (for Ankimon)." -ForegroundColor Yellow
+        Write-Host "Could not auto-detect addons21. It should contain folders like '$ADDON_FOLDER_NAME'." -ForegroundColor Yellow
         $AnkiBase = Read-Host "Enter your Anki base directory (this folder should contain a folder named addons21)"
         $AddonsDir = Join-Path $AnkiBase 'addons21'
     } else {
@@ -215,7 +235,7 @@ if ($MODE -eq '1') {
     }
 } elseif ($MODE -eq '2') {
     Write-Host ""
-    $AnkiBase = Read-Host "Enter your Anki base directory where you want to store the new Anki installation. (It will get an addons21 folder with a symlinked version of Ankimon)"
+    $AnkiBase = Read-Host "Enter your Anki base directory where you want to store the new Anki installation. (It will get an addons21 folder with a symlinked version of the addon)"
     $AddonsDir = Join-Path $AnkiBase 'addons21'
     if (-not (Test-Path $AddonsDir)) { New-Item -ItemType Directory -Path $AddonsDir | Out-Null }
 } else {
@@ -224,33 +244,45 @@ if ($MODE -eq '1') {
 }
 
 # User Backup Warning and Double Confirmation
-
-Write-Host ""
-Write-Host "IMPORTANT: USER FILES BACKUP REQUIRED" -ForegroundColor Red
-Write-Host "Before installing, your existing Ankimon user files WILL BE DELETED." -ForegroundColor Yellow
-Write-Host "You MUST backup the following files from the 'user_files' directory:" -ForegroundColor Yellow
-Write-Host "  - meta.json, mypokemon.json, mainpokemon.json, badges.json, items.json" -ForegroundColor Yellow
-Write-Host "  - teams.json and data.json (if they exist)" -ForegroundColor Yellow
-if ($MODE -eq '2') {
-    Write-Host "Note: For a NEW (mode 2) installation, backup is still strongly recommended." -ForegroundColor Yellow
+if ($IS_ANKIMON) {
+    Write-Host ""
+    Write-Host "IMPORTANT: USER FILES BACKUP REQUIRED" -ForegroundColor Red
+    Write-Host "Before installing, your existing Ankimon user files WILL BE DELETED." -ForegroundColor Yellow
+    Write-Host "You MUST backup the following files from the 'user_files' directory:" -ForegroundColor Yellow
+    Write-Host "  - meta.json, mypokemon.json, mainpokemon.json, badges.json, items.json" -ForegroundColor Yellow
+    Write-Host "  - teams.json and data.json (if they exist)" -ForegroundColor Yellow
+    if ($MODE -eq '2') {
+        Write-Host "Note: For a NEW (mode 2) installation, backup is still strongly recommended." -ForegroundColor Yellow
+    }
+    Write-Host ""
+    $confirm1 = Read-Host "Have you backed up all your user files? Type YES to continue" 
+    if ($confirm1 -ne 'YES') {
+        Write-Host "Aborting installation." -ForegroundColor Red
+        exit 1
+    }
+    $confirm2 = Read-Host "FINAL WARNING: Type YES to proceed with deletion and installation" 
+    if ($confirm2 -ne 'YES') {
+        Write-Host "Aborting installation." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Proceeding with Ankimon add-on installation..." -ForegroundColor Green
+} else {
+    Write-Host ""
+    Write-Host "IMPORTANT: Custom Addon .gitignore Warning" -ForegroundColor Red
+    Write-Host "Ensure your custom addon's GitHub repository properly ignores cache files and user data (e.g., via .gitignore)." -ForegroundColor Yellow
+    Write-Host "Otherwise, personal information might be tracked and committed, leading to data exposure." -ForegroundColor Yellow
+    Write-Host "For more info, see: https://github.com/h0tp-ftw/anki-vscode?tab=readme-ov-file#making-your-add-on-compatible" -ForegroundColor Yellow
+    Write-Host "The script will remove any existing folder with the same name in your Anki addons directory." -ForegroundColor Yellow
+    $CONFIRM_CUSTOM = Read-Host "Have you ensured your addon's .gitignore is correctly configured? Type YES to continue"
+    if ($CONFIRM_CUSTOM -ne 'YES') {
+        Write-Host "Aborting installation. Please configure your .gitignore and try again." -ForegroundColor Red
+        exit 1
+    }
 }
-Write-Host ""
-$confirm1 = Read-Host "Have you backed up all your user files? Type YES to continue" 
-if ($confirm1 -ne 'YES') {
-    Write-Host "Aborting installation." -ForegroundColor Red
-    exit 1
-}
-$confirm2 = Read-Host "FINAL WARNING: Type YES to proceed with deletion and installation" 
-if ($confirm2 -ne 'YES') {
-    Write-Host "Aborting installation." -ForegroundColor Red
-    exit 1
-}
-Write-Host "Proceeding with Ankimon add-on installation..." -ForegroundColor Green
 
-# Symlink src/Ankimon -> addons21/1908235722
-
-$srcDir     = Join-Path $AnkimonDir 'src\Ankimon'
-$targetLink = Join-Path $AddonsDir '1908235722'
+# Symlink addon source to addons21 folder
+$srcDir     = Join-Path $AddonCloneDir $ADDON_SRC_PATH
+$targetLink = Join-Path $AddonsDir $ADDON_FOLDER_NAME
 
 Write-Host ""
 Write-Host "Linking `$srcDir` to the directory `$targetLink` " -ForegroundColor Cyan
@@ -263,7 +295,7 @@ New-Item -ItemType SymbolicLink -Path $targetLink -Target $srcDir | Out-Null
 Write-Host "Symlink created: $targetLink pointing to $srcDir" -ForegroundColor Green
 
 $sourceTemplate = Join-Path $CloneDir '.vscode\launch_windows.json'
-$destDir        = Join-Path $AnkimonDir '.vscode'
+$destDir        = Join-Path $AddonCloneDir '.vscode'
 $destTemplate   = Join-Path $destDir 'launch_windows.json'
 
 if (-not (Test-Path $destTemplate)) {
@@ -275,7 +307,7 @@ if (-not (Test-Path $destTemplate)) {
 
 # Generate the final launch.json using the copied template
 $templateFile = $destTemplate
-$launchFile   = Join-Path $AnkimonDir '.vscode\launch.json'
+$launchFile   = Join-Path $AddonCloneDir '.vscode\launch.json'
 
 $content = Get-Content -Path $templateFile -Raw
 $content = $content.Replace('$PROGRAM_PATH$', "$($VenvDir)\Scripts\anki.exe".Replace('\', '\\'))
@@ -287,15 +319,15 @@ Write-Host "launch.json configured at: $launchFile" -ForegroundColor Green
 # Final Confirmation & User Guidance
 
 # --- STEP 1: Open the Folder ---
-Write-Host "--- STEP 1: Open the Ankimon Project in VS Code ---" -ForegroundColor $YELLOW
+Write-Host "--- STEP 1: Open the $ADDON_NAME Project in VS Code ---" -ForegroundColor $YELLOW
 Write-Host "Please open Visual Studio Code."
-Write-Host "In VS Code, go to 'File' > 'Open Folder...' and select the Ankimon directory."
+Write-Host "In VS Code, go to 'File' > 'Open Folder...' and select the $ADDON_NAME directory."
 Write-Host "The correct folder path is: " -NoNewline
-Write-Host "$AnkimonDir" -ForegroundColor $CYAN
+Write-Host "$AddonCloneDir" -ForegroundColor $CYAN
 Write-Host "To confirm that it is correct, go to the Source Control tab (Ctrl + Shift + G). If it is correct, it will show you the Changes tab and a Graph of commits in the lower field."
 Write-Host "If it tells you to Initialize Repository or Open Folder, you have the wrong folder."
 Write-Host ""
-Write-Host "Press Enter once you have the Ankimon folder open in VS Code..." -NoNewline
+Write-Host "Press Enter once you have the $ADDON_NAME folder open in VS Code..." -NoNewline
 $null = Read-Host
 
 # --- STEP 2: Select the Python Interpreter ---
@@ -330,7 +362,7 @@ Write-Host "'Python Anki'" -ForegroundColor $GREEN -NoNewline
 Write-Host ". If not, select it from the list."
 Write-Host "4. Click the green play button to start debugging."
 Write-Host ""
-Write-Host "Anki should now open with your Ankimon add-on loaded."
+Write-Host "Anki should now open with your $ADDON_NAME add-on loaded."
 Write-Host ""
 Write-Host "Press Enter once Anki has started..." -NoNewline
 $null = Read-Host
@@ -343,7 +375,7 @@ Write-Host "====================================================================
 Write-Host ""
 Write-Host "Here is a summary of your setup for future reference:"
 Write-Host "  - Add-on Source: " -NoNewline
-Write-Host "$AnkimonDir" -ForegroundColor $CYAN
+Write-Host "$AddonCloneDir" -ForegroundColor $CYAN
 Write-Host "  - Virtual Env: " -NoNewline
 Write-Host "$VenvDir" -ForegroundColor $CYAN
 Write-Host "  - Interpreter Path: " -NoNewline
