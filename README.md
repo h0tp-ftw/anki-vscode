@@ -33,7 +33,7 @@ Prerequisites: **VS Code**, **Python** and **Git**
 
 # Quick Start
 
-These commands are designed for installation of the [Ankimon (experimental)](https://github.com/h0tp-ftw/ankimon) add-on. Please follow the steps below in the "Manual Setup" section for other add-ons.
+This works with ANY Anki add-on, as long as you have its Github repository and 
 
 ## macOS/Linux (Bash)
 
@@ -68,11 +68,35 @@ If you are concerned, you can follow the detailed steps given below.
 - your add-on could be here O_o
 
 ## Making Your Add-on Compatible
-Imagine if you opened the add-on in VS Code, and found out that files for your personal info are being tracked, and are considered in a push/pull/PR! That would be a disaster 😅
+To ensure your add-on works smoothly with this development environment, it's crucial to prevent personal data and user-specific files from being tracked by Git.
+Accidentally committing these files to your repository can cause problems for both you and your users.
 
-NOTE that to be compatible with the methods here, your add-on must be set up so that cache files, user data files, and other files (which are not supposed to be pushed to the add-on release on GitHub) are NOT PRESENT in the GitHub repo, and are properly ignored from tracking through a .gitignore file. If you need to regenerate those files when the user uses the add-on for the first time, you can add functions to check if the file is present, and if not, dump the info from a Python function into that file. 
+Follow these guidelines to make your add-on compatible with this:
 
-Once you do this, test it out by setting up the integration as given below. If set up correctly, after using your add-on, your tracked changes will not show any user data files or cache files that were altered by using the add-on. In other words, if you're using the add-on normally and make any code changes, only the code changes should show up and not any personal files.
+1. Use a `.gitignore` file
+
+Your repository must have a .gitignore file to exclude files that are not part of the add-on's source code. This includes:
+* Cache files
+* User data and configuration files (e.g., meta.json, config.json)
+* Log files
+* Any other files generated during the add-on's use.
+
+2. Create User Files Dynamically
+
+If your add-on needs user-specific files to function, design it to create them at runtime if they don't exist. For example, your add-on can check for a configuration file
+on startup and create a default version if it's missing.
+
+3. Verify Your Setup
+
+After configuring your .gitignore and implementing dynamic file creation, test your setup:
+1. Use your add-on in Anki as a normal user would. This should generate user data or cache files.
+2. Check the status of your Git repository (e.g., with git status).
+3. The only changes you should see are the ones you've made to the add-on's code. No user-specific files should appear in the tracked or untracked files.
+
+Example `.gitignore`
+
+For a working example, you can refer to the .gitignore file used by the Ankimon add-on:
+Ankimon .gitignore (https://raw.githubusercontent.com/h0tp-ftw/ankimon/refs/heads/main/.gitignore)
 
 # Manual Setup
 <details>
