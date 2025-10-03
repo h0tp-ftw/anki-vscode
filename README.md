@@ -33,7 +33,7 @@ Prerequisites: **VS Code**, **Python** and **Git**
 
 # Quick Start
 
-This works with ANY Anki add-on, as long as you have its Github repository and 
+This works with ANY Anki add-on, as long as it has a public Github repository and [it is made compatible](#making-your-add-on-compatible).
 
 ## macOS/Linux (Bash)
 
