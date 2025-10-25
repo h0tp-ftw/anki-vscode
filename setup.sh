@@ -55,8 +55,8 @@ echo "  Absolute path: /home/username/Documents/my-projects"
 echo "  Home relative: ~/Documents/my-projects"
 echo "  Current dir relative: ./my-projects"
 echo ""
-echo -n "Press Enter to use default location, or type a custom directory path: " > /dev/tty
-read  USER_CLONE_DIR < /dev/tty
+echo -n "Press Enter to use default location, or type a custom directory path: "
+read  USER_CLONE_DIR
 
 CLONE_DIR="${USER_CLONE_DIR:-$DEFAULT_CLONE_DIR}"
 CLONE_DIR="${CLONE_DIR/#\~/$HOME}"
@@ -91,8 +91,8 @@ echo "  Absolute path: /home/username/my-venv"
 echo "  Relative to repo: ./venv"
 echo "  Custom location: ~/python-envs/anki-vscode"
 echo ""
-echo -n "Press Enter to use default location, or type a custom venv path: " > /dev/tty
-read  USER_VENV_DIR < /dev/tty
+echo -n "Press Enter to use default location, or type a custom venv path: "
+read  USER_VENV_DIR
 
 VENV_DIR="${USER_VENV_DIR:-$DEFAULT_VENV_DIR}"
 VENV_DIR="${VENV_DIR/#\~/$HOME}"
@@ -162,20 +162,20 @@ echo "source \"$VENV_DIR/bin/activate\""
 echo
 echo "Custom Add-on Configuration"
 echo "==========================="
-echo -n "Do you want to install an addon other than Ankimon Experimental? [y/N]: " > /dev/tty
-read  CUSTOM_ADDON_CHOICE < /dev/tty
+echo -n "Do you want to install an addon other than Ankimon Experimental? [y/N]: "
+read  CUSTOM_ADDON_CHOICE
 
 IS_ANKIMON=true
 if [[ "$CUSTOM_ADDON_CHOICE" == "y" || "$CUSTOM_ADDON_CHOICE" == "Y" ]]; then
     IS_ANKIMON=false
     echo ""
     echo "Enter custom addon details:"
-    echo -n "GitHub repository URL: " > /dev/tty
-    read  ADDON_REPO_URL < /dev/tty
-    echo -n "Relative path to addon source folder (e.g., src/Ankimon, use forward slashes): " > /dev/tty
-    read  ADDON_SRC_PATH < /dev/tty
-    echo -n "Addon folder name in addons21 (e.g., 1908235722): " > /dev/tty
-    read  ADDON_FOLDER_NAME < /dev/tty
+    echo -n "GitHub repository URL: "
+    read  ADDON_REPO_URL
+    echo -n "Relative path to addon source folder (e.g., src/Ankimon, use forward slashes): "
+    read  ADDON_SRC_PATH
+    echo -n "Addon folder name in addons21 (e.g., 1908235722): "
+    read  ADDON_FOLDER_NAME
     ADDON_NAME="Custom Addon"
 else
     ADDON_REPO_URL="https://github.com/h0tp-ftw/ankimon.git"
@@ -190,20 +190,20 @@ echo "1) Native Anki installation (detect and use your system’s addons21). Thi
 echo "2) Separate Anki installation (you specify a base directory). This will make an entirely new Anki installation, separate from your normal Anki installation."
 echo "Both options are good. 1. is more convenient and mimics your actual installation, and 2. is isolated from your install, and messing up your addon will not affect your normal installation."
 echo ""
-echo -n "Select [1 or 2]: " > /dev/tty
-read  MODE < /dev/tty
+echo -n "Select [1 or 2]: "
+read  MODE
 
 # Default addon clone location
 DEFAULT_ADDON_CLONE_DIR="$HOME/Documents/$(basename "$ADDON_REPO_URL" .git)"
-echo -n "Press Enter to clone $ADDON_NAME under [$DEFAULT_ADDON_CLONE_DIR], or type custom path: " > /dev/tty
-read  ADDON_CLONE_DIR   < /dev/tty
+echo -n "Press Enter to clone $ADDON_NAME under [$DEFAULT_ADDON_CLONE_DIR], or type custom path: "
+read  ADDON_CLONE_DIR
 ADDON_CLONE_DIR="${ADDON_CLONE_DIR:-$DEFAULT_ADDON_CLONE_DIR}"
 mkdir -p "$ADDON_CLONE_DIR"
 if [ ! -d "$ADDON_CLONE_DIR/.git" ]; then
-  echo "Cloning $ADDON_NAME into $ADDON_CLONE_DIR…" 
+  echo "Cloning $ADDON_NAME into $ADDON_CLONE_DIR..."
   git clone "$ADDON_REPO_URL" "$ADDON_CLONE_DIR"
 else
-  echo "Updating existing $ADDON_NAME repo…" 
+  echo "Updating existing $ADDON_NAME repo..."
   cd "$ADDON_CLONE_DIR" && git pull && cd - >/dev/null
 fi
 
@@ -221,16 +221,16 @@ if [ "$MODE" = "1" ]; then
   for DIR in "${POSSIBLE[@]}"; do
     if [ -d "$DIR" ]; then
       echo "Found: $DIR"
-      echo -n "Use this directory? [Y/n]: " > /dev/tty
-      read  yn           < /dev/tty
+      echo -n "Use this directory? [Y/n]: "
+      read  yn
       case "$yn" in [Nn]*) continue;; *) ADDONS_DIR="$DIR"; break;; esac
     fi
   done
   # Fallback to manual if not set
   if [ -z "$ADDONS_DIR" ]; then
     echo "Could not auto-detect addons21. It should contain folders like '$ADDON_FOLDER_NAME' and 'community'."
-    echo -n "Enter your Anki base directory (parent of addons21): " > /dev/tty
-    read  ANKI_BASE     < /dev/tty
+    echo -n "Enter your Anki base directory (parent of addons21): "
+    read  ANKI_BASE
     ADDONS_DIR="$ANKI_BASE/addons21"
   else
     ANKI_BASE="$(dirname "$ADDONS_DIR")"
@@ -238,8 +238,8 @@ if [ "$MODE" = "1" ]; then
 
 elif [ "$MODE" = "2" ]; then
   echo
-  echo -n "Enter your Anki base directory (will contain addons21): " > /dev/tty
-  read  ANKI_BASE     < /dev/tty
+  echo -n "Enter your Anki base directory (will contain addons21): "
+  read  ANKI_BASE
   ADDONS_DIR="$ANKI_BASE/addons21"
   mkdir -p "$ADDONS_DIR"
 
@@ -254,46 +254,46 @@ fi
 
 if [ "$IS_ANKIMON" = true ]; then
     echo ""
-    echo "⚠️  IMPORTANT: USER FILES BACKUP REQUIRED ⚠️" > /dev/tty
-    echo "Before installing the Ankimon add-on, your existing Ankimon user files in the Anki add-ons directory WILL BE DELETED and replaced." > /dev/tty
-    echo "You MUST backup the following files from the 'user_files' directory inside your Ankimon add-on folder (if present):" > /dev/tty
-    echo "  - meta.json" > /dev/tty
-    echo "  - mypokemon.json" > /dev/tty
-    echo "  - mainpokemon.json" > /dev/tty
-    echo "  - badges.json" > /dev/tty
-    echo "  - items.json" > /dev/tty
-    echo "  - teams.json (if present)" > /dev/tty
-    echo "  - data.json (if present)" > /dev/tty
-    echo "In total, you may have 5 to 7 files to back up depending on your usage." > /dev/tty
+    echo "⚠️  IMPORTANT: USER FILES BACKUP REQUIRED ⚠️"
+    echo "Before installing the Ankimon add-on, your existing Ankimon user files in the Anki add-ons directory WILL BE DELETED and replaced."
+    echo "You MUST backup the following files from the 'user_files' directory inside your Ankimon add-on folder (if present):"
+    echo "  - meta.json"
+    echo "  - mypokemon.json"
+    echo "  - mainpokemon.json"
+    echo "  - badges.json"
+    echo "  - items.json"
+    echo "  - teams.json (if present)"
+    echo "  - data.json (if present)"
+    echo "In total, you may have 5 to 7 files to back up depending on your usage."
     if [ "$MODE" = "2" ]; then
-        echo "Note: If you are using a NEW SEPARATE installation (mode 2), this may not be needed, but it is still recommended to backup in case any issues occur." > /dev/tty
+        echo "Note: If you are using a NEW SEPARATE installation (mode 2), this may not be needed, but it is still recommended to backup in case any issues occur."
     fi
-    echo "" > /dev/tty
-    echo "Please backup these files now before proceeding." > /dev/tty
-    echo -n "Have you backed up all your user files? Type YES (in all caps) to continue: " > /dev/tty
-    read CONFIRM1 < /dev/tty
+    echo ""
+    echo "Please backup these files now before proceeding."
+    echo -n "Have you backed up all your user files? Type YES (in all caps) to continue: "
+    read CONFIRM1
     if [ "$CONFIRM1" != "YES" ]; then
-        echo "Aborting installation. Please backup your files before running this script again." > /dev/tty
+        echo "Aborting installation. Please backup your files before running this script again."
         exit 1
     fi
-    echo -n "This is your FINAL WARNING. Your current add-on will be DELETED and replaced with the GitHub version. Are you absolutely sure you have backed up your user files? Type YES (in all caps) to proceed: " > /dev/tty
-    read CONFIRM2 < /dev/tty
+    echo -n "This is your FINAL WARNING. Your current add-on will be DELETED and replaced with the GitHub version. Are you absolutely sure you have backed up your user files? Type YES (in all caps) to proceed: "
+    read CONFIRM2
     if [ "$CONFIRM2" != "YES" ]; then
-        echo "Aborting installation. Please backup your files before running this script again." > /dev/tty
+        echo "Aborting installation. Please backup your files before running this script again."
         exit 1
     fi
-    echo "Proceeding with Ankimon add-on installation..." > /dev/tty
+    echo "Proceeding with Ankimon add-on installation..."
 else
     echo ""
-    echo "⚠️  IMPORTANT: Custom Addon .gitignore Warning ⚠️" > /dev/tty
-    echo "Ensure your custom addon's GitHub repository properly ignores cache files and user data (e.g., via .gitignore)." > /dev/tty
-    echo "Otherwise, personal information might be tracked and committed, leading to data exposure." > /dev/tty
-    echo "For more info, see: https://github.com/h0tp-ftw/anki-vscode?tab=readme-ov-file#making-your-add-on-compatible" > /dev/tty
-    echo "The script will remove any existing folder with the same name in your Anki addons directory." > /dev/tty
-    echo -n "Have you ensured your addon's .gitignore is correctly configured? Type YES (in all caps) to continue: " > /dev/tty
-    read CONFIRM_CUSTOM < /dev/tty
+    echo "⚠️  IMPORTANT: Custom Addon .gitignore Warning ⚠️"
+    echo "Ensure your custom addon's GitHub repository properly ignores cache files and user data (e.g., via .gitignore)."
+    echo "Otherwise, personal information might be tracked and committed, leading to data exposure."
+    echo "For more info, see: https://github.com/h0tp-ftw/anki-vscode?tab=readme-ov-file#making-your-add-on-compatible"
+    echo "The script will remove any existing folder with the same name in your Anki addons directory."
+    echo -n "Have you ensured your addon's .gitignore is correctly configured? Type YES (in all caps) to continue: "
+    read CONFIRM_CUSTOM
     if [ "$CONFIRM_CUSTOM" != "YES" ]; then
-        echo "Aborting installation. Please configure your .gitignore and try again." > /dev/tty
+        echo "Aborting installation. Please configure your .gitignore and try again."
         exit 1
     fi
 fi
@@ -303,18 +303,18 @@ fi
 SRC_DIR="$ADDON_CLONE_DIR/$ADDON_SRC_PATH"
 TARGET_LINK="$ADDONS_DIR/$ADDON_FOLDER_NAME"
 
-echo "Linking $SRC_DIR -> $TARGET_LINK"
+echo "Linking \"$SRC_DIR\" -> \"$TARGET_LINK\""
 
 # Remove existing directory or symlink at target
 if [ -e "$TARGET_LINK" ] || [ -L "$TARGET_LINK" ]; then
-    echo "Removing existing directory or symlink at $TARGET_LINK"
+    echo "Removing existing directory or symlink at \"$TARGET_LINK\""
     rm -rf "$TARGET_LINK"
 fi
 
 ln -s "$SRC_DIR" "$TARGET_LINK" \
   && echo "Symlink created successfully." \
   || { 
-       echo "Failed to link. Please backup $TARGET_LINK and try again.";
+       echo "Failed to link. Please backup \"$TARGET_LINK\" and try again.";
        exit 1;
      }
 
@@ -361,8 +361,8 @@ echo -e "The correct folder path is: ${CYAN}$ADDON_CLONE_DIR${NC}"
 echo "To confirm that it is correct, go to the Source Control tab (Ctrl + Shift + G). If it is correct, it will show you the Changes tab and a Graph of commits in the lower field. "
 echo "If it tells you to Initialize Repository or Open Folder, you have the wrong folder."
 echo
-echo -n "Press Enter once you have the $ADDON_NAME folder open in VS Code..." > /dev/tty
-read -r < /dev/tty
+echo -n "Press Enter once you have the $ADDON_NAME folder open in VS Code..."
+read -r
 
 # --- STEP 2: Select the Python Interpreter ---
 echo
@@ -378,8 +378,8 @@ echo
 echo "After this, you should see the correct Python version in the bottom-right corner of VS Code."
 echo " The imports on your file (like import aqt) should also be resolved now."
 echo
-echo -n "Press Enter once you have set the interpreter..." > /dev/tty
-read -r < /dev/tty
+echo -n "Press Enter once you have set the interpreter..."
+read -r
 
 # --- STEP 3: Start Debugging ---
 echo
@@ -392,8 +392,8 @@ echo "4. Click the green play button to start debugging."
 echo
 echo "Anki should now open with your $ADDON_NAME add-on loaded."
 echo
-echo -n "Press Enter once Anki has started..." > /dev/tty
-read -r < /dev/tty
+echo -n "Press Enter once Anki has started..."
+read -r
 
 # --- FINAL CONFIRMATION ---
 echo
