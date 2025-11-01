@@ -343,11 +343,18 @@ cat > "$LAUNCH_DIR/launch.json" <<EOF
 }
 EOF
 
-# Define colors for better output
-CYAN='\e[1;36m'
-YELLOW='\e[1;33m'
-GREEN='\e[1;32m'
-NC='\e[0m' # No Color
+# Define colors for better output, if supported
+if command -v tput >/dev/null && tput setaf 1 >/dev/null 2>&1; then
+    CYAN='\e[1;36m'
+    YELLOW='\e[1;33m'
+    GREEN='\e[1;32m'
+    NC='\e[0m' # No Color
+else
+    CYAN=''
+    YELLOW=''
+    GREEN=''
+    NC=''
+fi
 
 echo
 echo "The automated setup is complete. Now, I will guide you through the final manual steps in VS Code."
