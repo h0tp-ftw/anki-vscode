@@ -6,14 +6,15 @@
 ![Last Commit](https://img.shields.io/github/last-commit/h0tp-ftw/anki-vscode)
 ![Contributors](https://img.shields.io/github/contributors/h0tp-ftw/anki-vscode)
 
-VSCode setup for debugging Anki add-ons, making add-on development more efficient! 
-
-Made by @h0tp-ftw, based on the work of @RisingOrange
+Make add-on development easier by debugging and coding Anki add-ons live! Test and commit code directly within VS Code with Anki running!
 
 - 🔍 **Live Debugging**: Set breakpoints and inspect variables in real-time
-- ⚡ **Quick Testing**: Make code changes directly in VS Code and quickly restart Anki (no hot reloading)
+- ⚡ **Quick Testing**: Make code changes directly in VS Code and quickly restart Anki 
 - 🌿 **Branch Switching**: Easily switch between branches, tags or versions of your add-on
 - 🌐 **Cross-Platform**: Works on Windows, macOS, and Linux
+- 🔥 **VS Code Workflow**: Change code -> Run Anki -> Debug and Commit code, all within VS Code
+
+Creator: **@h0tp-ftw** (with Gemini 2.5 Pro/Flash and Claude Sonnet 4.0 assistance), forked from **@RisingOrange**
 
 Prerequisites: **VS Code**, **Python** and **Git**
 
@@ -21,6 +22,7 @@ Prerequisites: **VS Code**, **Python** and **Git**
 
 ## Table of Contents
 - [Quick Start](#quick-start)
+  - [Setup Options](#setup-options)
   - [macOS/Linux](#macoslinux-bash)
   - [Windows](#windows-powershell)
 - [Compatible Add-ons](#compatible-add-ons)
@@ -35,6 +37,14 @@ Prerequisites: **VS Code**, **Python** and **Git**
 
 This works with ANY Anki add-on, as long as it has a public Github repository and [it is made compatible](#making-your-add-on-compatible).
 
+### Setup Options
+
+The `setup.sh` script now offers three installation modes to suit your needs:
+
+-   **Full Install (Default)**: This is the recommended option for most users. It performs a complete setup, including cloning `anki-vscode`, setting up a Python virtual environment, installing dependencies, cloning your chosen add-on, creating a symlink, and generating the `launch.json` file for VS Code debugging. 
+-   **Venv Only**: This option focuses on setting up the Python virtual environment and installing dependencies. It's suitable if you only need the virtual Python environment configured to be able to run Anki.
+-   **Addon Setup Only**: This is a light option if you want to be able to access git features for the addon, without running it in VS Code. It will clone your specified add-on and create the necessary symlink in your Anki `addons21` directory, skipping the `anki-vscode` clone, venv setup, and `launch.json` generation. *RECOMMENDED if full install gives you problems.*
+
 ## macOS/Linux (Bash)
 
 Run this command in your terminal:
@@ -42,6 +52,8 @@ Run this command in your terminal:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/h0tp-ftw/anki-vscode/refs/heads/master/setup.sh | bash
    ```
+
+   After running the command, you will be presented with a menu to choose your desired setup option (Full Install, Venv Only, or Addon Setup Only).
 
 ---
 
@@ -83,14 +95,13 @@ Your repository must have a .gitignore file to exclude files that are not part o
 
 2. Create User Files Dynamically
 
-If your add-on needs user-specific files to function, design it to create them at runtime if they don't exist. For example, your add-on can check for a configuration file
-on startup and create a default version if it's missing.
+If your add-on needs user-specific files to function, design it to create them at runtime if they don't exist. For example, your add-on can check for a configuration file on startup and create a default/empty version if it's missing.
 
 3. Verify Your Setup
 
 After configuring your .gitignore and implementing dynamic file creation, test your setup:
-1. Use your add-on in Anki as a normal user would. This should generate user data or cache files.
-2. Check the status of your Git repository (e.g., with git status).
+1. Use your add-on in Anki as a normal user would. Use your addon, change its settings, etc. This should generate user data or cache files.
+2. Check the status of your Git repository (e.g. in VS Code source control, or with git status).
 3. The only changes you should see are the ones you've made to the add-on's code. No user-specific files should appear in the tracked or untracked files.
 
 Example `.gitignore`
