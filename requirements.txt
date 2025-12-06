@@ -1,4 +1,4 @@
-aqt[qt6]
+aqt
 debugpy
 mypy
 pylint
