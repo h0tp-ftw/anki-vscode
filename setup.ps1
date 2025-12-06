@@ -260,6 +260,7 @@ if ($INSTALL_MODE -eq 'FULL' -or $INSTALL_MODE -eq 'ADDON_ONLY') {
             "stopOnEntry": false,
             "program": "$ankiPath",
             "cwd": "${workspaceRoot}",
+            "python": "$VENV_DIR\\Scripts\\python.exe",
             "env": {},
             "args": [
                 "-b",
@@ -278,10 +279,7 @@ if ($INSTALL_MODE -eq 'FULL' -or $INSTALL_MODE -eq 'ADDON_ONLY') {
         Write-Host "`n--- STEP 1: Open $ADDON_NAME Project in VS Code ---" -ForegroundColor $YELLOW
         Read-Host "Press Enter once $ADDON_NAME folder is open in VS Code..."
 
-        Write-Host "`n--- STEP 2: Select Python Interpreter ---" -ForegroundColor $YELLOW
-        Read-Host "Press Enter once interpreter is set to '$($VenvDir)\Scripts\python.exe'..."
-
-        Write-Host "`n--- STEP 3: Start Debugging ---" -ForegroundColor $YELLOW
+        Write-Host "`n--- STEP 2: Start Debugging ---" -ForegroundColor $YELLOW
         Read-Host "Press Enter once Anki has started via the debugger..."
 
         Write-Host "`n=====================================================================" -ForegroundColor $GREEN

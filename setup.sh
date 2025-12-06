@@ -383,6 +383,7 @@ cat > "$LAUNCH_DIR/launch.json" <<EOF
             "program": "$VENV_DIR/bin/anki",
             "cwd": "\${workspaceRoot}",
             "env": {},
+            "python": "$VENV_DIR/bin/python",
             "args": [
                 "-b",
                 "$ANKI_BASE"
@@ -404,21 +405,9 @@ echo
 echo -n "Press Enter once $ADDON_NAME folder is open in VS Code..." > /dev/tty
 read -r < /dev/tty
 
-# --- STEP 2: Select Python Interpreter ---
+# --- STEP 2: Start Debugging ---
 echo
-echo -e "${YELLOW}--- STEP 2: Select Python Interpreter ---${NC}"
-echo "Tell VS Code to use the virtual environment's Python:"
-echo "1. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)."
-echo "2. Type '${CYAN}Python: Select Interpreter${NC}', press Enter."
-echo "3. Select '${CYAN}Enter interpreter path...${NC}', then 'Find...' and choose: ${CYAN}$VENV_DIR/bin/python${NC}"
-echo "Verify Python version in bottom-right of VS Code; imports (e.g., 'import aqt') should resolve."
-echo
-echo -n "Press Enter once interpreter is set..." > /dev/tty
-read -r < /dev/tty
-
-# --- STEP 3: Start Debugging ---
-echo
-echo -e "${YELLOW}--- STEP 3: Start Debugging ---${NC}"
+echo -e "${YELLOW}--- STEP 2: Start Debugging ---${NC}"
 echo "Launch Anki with the debugger attached:"
 echo "1. Go to 'Run and Debug' (Ctrl+Shift+D / Cmd+Shift+D)."
 echo "2. Ensure dropdown says '${GREEN}Python Anki${NC}' (select if needed)."
