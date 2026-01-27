@@ -248,6 +248,7 @@ if ($INSTALL_MODE -eq 'FULL' -or $INSTALL_MODE -eq 'ADDON_ONLY') {
         $launchFile = Join-Path $launchDir 'launch.json'
         $ankiPath = "$($VenvDir)\Scripts\anki.exe".Replace('\', '\\')
         $ankiBaseEscaped = $AnkiBase.Replace('\', '\\')
+        $pythonPath = "$($VenvDir)\Scripts\python.exe".Replace('\', '\\')
 
         $launchJsonContent = @"
 {
@@ -260,7 +261,7 @@ if ($INSTALL_MODE -eq 'FULL' -or $INSTALL_MODE -eq 'ADDON_ONLY') {
             "stopOnEntry": false,
             "program": "$ankiPath",
             "cwd": "${workspaceRoot}",
-            "python": "$VENV_DIR\\Scripts\\python.exe",
+            "python": "$pythonPath",
             "env": {},
             "args": [
                 "-b",
