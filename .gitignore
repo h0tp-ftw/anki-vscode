@@ -1,4 +1,28 @@
+# Environment & Credentials
 .env
-setup.sh
+*.vsix
+anki-vscode-setup-*.vsix
+
+# Scripts (Local only)
 cycle_keys.py
+
+# VS Code
+.vscode/
 launch.json
+extension/out/
+extension/node_modules/
+extension/.vscode/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# System Files
+.DS_Store
+Thumbs.db

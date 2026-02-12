@@ -1,0 +1,188 @@
+{
+    "name": "anki-vscode-setup",
+    "displayName": "Anki Development Suite",
+    "description": "Full-featured Anki add-on development environment with debugging, profiles, and one-click setup.",
+    "version": "0.5.3",
+    "publisher": "h0tp-ftw",
+    "license": "GPL-3.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/h0tp-ftw/anki-vscode"
+    },
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other",
+        "Debuggers"
+    ],
+    "activationEvents": [
+        "onView:anki-environments",
+        "onView:anki-addons",
+        "onView:anki-actions"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "anki-dev",
+                    "title": "Anki Development",
+                    "icon": "$(book)"
+                }
+            ]
+        },
+        "views": {
+            "anki-dev": [
+                {
+                    "id": "anki-environments",
+                    "name": "Environments"
+                },
+                {
+                    "id": "anki-addons",
+                    "name": "Addons"
+                },
+                {
+                    "id": "anki-actions",
+                    "name": "Quick Actions"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "anki.setup",
+                "title": "Anki: Setup Environment (Legacy Wizard)"
+            },
+            {
+                "command": "anki.runAnki",
+                "title": "Anki: Run Anki (Debug)",
+                "icon": "$(play)"
+            },
+            {
+                "command": "anki.addEnvironment",
+                "title": "Add Environment",
+                "icon": "$(add)"
+            },
+            {
+                "command": "anki.deleteEnvironment",
+                "title": "Delete Environment",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "anki.addAddon",
+                "title": "Add Addon",
+                "icon": "$(add)"
+            },
+            {
+                "command": "anki.deleteAddon",
+                "title": "Delete Addon",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "anki.initializeAddon",
+                "title": "Initialize Addon (Create Symlink)",
+                "icon": "$(link)"
+            },
+            {
+                "command": "anki.installPackage",
+                "title": "Install Package",
+                "icon": "$(package)"
+            },
+            {
+                "command": "anki.refreshView",
+                "title": "Refresh",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "anki.openAddonFolder",
+                "title": "Open Addon Folder",
+                "icon": "$(folder-opened)"
+            },
+            {
+                "command": "anki.gitSync",
+                "title": "Git Sync (Pull)",
+                "icon": "$(repo-sync)"
+            },
+            {
+                "command": "anki.generateLaunchConfig",
+                "title": "Generate launch.json",
+                "icon": "$(debug-configure)"
+            },
+            {
+                "command": "anki.editEnvironment",
+                "title": "Edit Environment",
+                "icon": "$(edit)"
+            },
+            {
+                "command": "anki.editAddon",
+                "title": "Edit Addon",
+                "icon": "$(edit)"
+            },
+            {
+                "command": "anki.openConfig",
+                "title": "Anki: Open Config File",
+                "icon": "$(json)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "anki.addEnvironment",
+                    "when": "view == anki-environments",
+                    "group": "navigation"
+                },
+                {
+                    "command": "anki.refreshView",
+                    "when": "view == anki-environments || view == anki-addons",
+                    "group": "navigation"
+                },
+                {
+                    "command": "anki.addAddon",
+                    "when": "view == anki-addons",
+                    "group": "navigation"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "anki.editEnvironment",
+                    "when": "view == anki-environments && viewItem == environment",
+                    "group": "inline"
+                },
+                {
+                    "command": "anki.deleteEnvironment",
+                    "when": "view == anki-environments && viewItem == environment",
+                    "group": "inline"
+                },
+                {
+                    "command": "anki.editAddon",
+                    "when": "view == anki-addons && viewItem == addon",
+                    "group": "inline"
+                },
+                {
+                    "command": "anki.deleteAddon",
+                    "when": "view == anki-addons && viewItem == addon",
+                    "group": "inline"
+                },
+                {
+                    "command": "anki.initializeAddon",
+                    "when": "view == anki-addons && viewItem == addon",
+                    "group": "inline"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "lint": "eslint src --ext ts"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "@types/vscode": "^1.85.0",
+        "@typescript-eslint/eslint-plugin": "^6.13.0",
+        "@typescript-eslint/parser": "^6.13.0",
+        "eslint": "^8.55.0",
+        "typescript": "^5.3.0"
+    }
+}
