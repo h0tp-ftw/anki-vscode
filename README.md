@@ -11,7 +11,7 @@ Make Anki add-on development seamless with live debugging, profiles, and one-cli
 The primary way to use this suite is via the **Anki Development Suite** extension.
 
 1. **Install the Extension**: Download and install the latest `.vsix` from the [GitHub Releases](https://github.com/h0tp-ftw/anki-vscode/releases) page.
-2. **Open Sidebar**: Click the **Book Icon** in the Activity Bar.
+2. **Open Sidebar**: Click the **Star Icon** in the Activity Bar.
 3. **Setup**: Use the sidebar to create environments and link your addons.
 4. **Debug**: Generate a `launch.json` and press `F5` to start debugging Anki live!
 
