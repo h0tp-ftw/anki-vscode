@@ -309,7 +309,7 @@ async function addAddon(): Promise<void> {
 
         // Clone
         log(`Cloning ${repoUrl} to ${localPath}...`);
-        const cloneResult = await runCommand('git', ['clone', repoUrl, localPath], getDocumentsFolder());
+        const cloneResult = await runCommand('git', ['clone', '--recursive', repoUrl, localPath], getDocumentsFolder());
         if (!cloneResult.success) {
             vscode.window.showErrorMessage('Failed to clone repository.');
             return;
@@ -605,8 +605,10 @@ async function gitSync(): Promise<void> {
     outputChannel.show(true);
     log(`Syncing ${addon.name}...`);
 
-    const result = await runCommand('git', ['pull'], addon.localPath);
+    const result = await runCommand('git', ['pull', '--recurse-submodules'], addon.localPath);
     if (result.success) {
+        // Ensure any newly added submodules are initialized/checked out.
+        await runCommand('git', ['submodule', 'update', '--init', '--recursive'], addon.localPath);
         vscode.window.showInformationMessage(`Synced ${addon.name}`);
     } else {
         vscode.window.showErrorMessage(`Failed to sync ${addon.name}`);
