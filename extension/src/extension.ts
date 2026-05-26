@@ -609,19 +609,25 @@ async function runAnki(): Promise<void> {
     }
 
     // Build launch config on the fly
-    const ankiExe = process.platform === 'win32'
-        ? path.join(env.venvPath, 'Scripts', 'anki.exe')
-        : path.join(env.venvPath, 'bin', 'anki');
-
     const pythonExe = process.platform === 'win32'
         ? path.join(env.venvPath, 'Scripts', 'python.exe')
         : path.join(env.venvPath, 'bin', 'python');
+
+    const vscodePath = path.join(addonPath, '.vscode');
+    const runAnkiPath = path.join(vscodePath, 'run_anki.py');
+
+    if (!fs.existsSync(vscodePath)) {
+        fs.mkdirSync(vscodePath, { recursive: true });
+    }
+    if (!fs.existsSync(runAnkiPath)) {
+        fs.writeFileSync(runAnkiPath, 'import sys\nfrom aqt import run\nsys.exit(run())\n', 'utf-8');
+    }
 
     const launchConfig: vscode.DebugConfiguration = {
         type: 'debugpy',
         name: 'Anki Debug',
         request: 'launch',
-        program: ankiExe,
+        program: runAnkiPath,
         python: pythonExe,
         args: ['-b', env.ankiBasePath],
         cwd: addonPath,
@@ -719,10 +725,6 @@ async function generateLaunchConfig(): Promise<void> {
         return;
     }
 
-    const ankiExe = process.platform === 'win32'
-        ? path.join(env.venvPath, 'Scripts', 'anki.exe')
-        : path.join(env.venvPath, 'bin', 'anki');
-
     const pythonExe = process.platform === 'win32'
         ? path.join(env.venvPath, 'Scripts', 'python.exe')
         : path.join(env.venvPath, 'bin', 'python');
@@ -734,7 +736,7 @@ async function generateLaunchConfig(): Promise<void> {
                 type: 'debugpy',
                 name: 'Anki Debug',
                 request: 'launch',
-                program: ankiExe,
+                program: '${workspaceFolder}/.vscode/run_anki.py',
                 python: pythonExe,
                 args: ['-b', env.ankiBasePath],
                 cwd: '${workspaceFolder}',
@@ -743,12 +745,17 @@ async function generateLaunchConfig(): Promise<void> {
         ]
     };
 
-    // Create .vscode folder and launch.json in addon folder
+    // Create .vscode folder, run_anki.py, and launch.json in addon folder
     const vscodePath = path.join(addon.localPath, '.vscode');
     const launchPath = path.join(vscodePath, 'launch.json');
+    const runAnkiPath = path.join(vscodePath, 'run_anki.py');
 
     if (!fs.existsSync(vscodePath)) {
         fs.mkdirSync(vscodePath, { recursive: true });
+    }
+
+    if (!fs.existsSync(runAnkiPath)) {
+        fs.writeFileSync(runAnkiPath, 'import sys\nfrom aqt import run\nsys.exit(run())\n', 'utf-8');
     }
 
     // Don't clobber an existing debug config without asking.
