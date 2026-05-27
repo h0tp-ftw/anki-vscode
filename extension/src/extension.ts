@@ -87,10 +87,23 @@ function getDocumentsFolder(): string {
     return path.join(process.env.HOME || '', 'Documents');
 }
 
-async function runCommand(command: string, args: string[], cwd: string): Promise<{ success: boolean; output: string }> {
+async function runCommand(command: string, args: string[], cwd: string, timeoutMs?: number): Promise<{ success: boolean; output: string }> {
     return new Promise((resolve) => {
+        log(`[Running Command] ${command} ${args.join(' ')} (cwd: ${cwd})`);
+        
         let output = '';
         const proc = spawn(command, args, { cwd, shell: true });
+        
+        let timeout: NodeJS.Timeout | undefined;
+        let isTimedOut = false;
+        if (timeoutMs) {
+            timeout = setTimeout(() => {
+                isTimedOut = true;
+                log(`[Command Timeout] Command "${command} ${args.join(' ')}" timed out after ${timeoutMs}ms. Killing process...`);
+                proc.kill();
+                resolve({ success: false, output: output + '\n[ERROR] Command timed out.' });
+            }, timeoutMs);
+        }
 
         proc.stdout.on('data', (data) => {
             output += data.toString();
@@ -103,11 +116,19 @@ async function runCommand(command: string, args: string[], cwd: string): Promise
         });
 
         proc.on('close', (code) => {
-            resolve({ success: code === 0, output });
+            if (timeout) { clearTimeout(timeout); }
+            if (!isTimedOut) {
+                log(`[Command Finished] Exit code: ${code}`);
+                resolve({ success: code === 0, output });
+            }
         });
 
         proc.on('error', (err) => {
-            resolve({ success: false, output: err.message });
+            if (timeout) { clearTimeout(timeout); }
+            if (!isTimedOut) {
+                log(`[Command Error] ${err.message}`);
+                resolve({ success: false, output: err.message });
+            }
         });
     });
 }
@@ -139,6 +160,13 @@ function detectAnkiBasePaths(): string[] {
     }
 
     return detected;
+}
+
+function checkVenvExists(venvPath: string): boolean {
+    const pythonExe = process.platform === 'win32'
+        ? path.join(venvPath, 'Scripts', 'python.exe')
+        : path.join(venvPath, 'bin', 'python');
+    return fs.existsSync(pythonExe);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -215,11 +243,45 @@ async function addEnvironment(): Promise<void> {
     }
 
     // Create venv
-    log(`Creating venv at ${venvPath}...`);
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    const venvResult = await runCommand(pythonCmd, ['-m', 'venv', venvPath], getDocumentsFolder());
+    let createVenv = true;
+    if (checkVenvExists(venvPath)) {
+        const choice = await vscode.window.showQuickPick(
+            ['Use existing virtual environment', 'Recreate / Overwrite'],
+            {
+                placeHolder: 'A virtual environment already exists at this location.',
+                ignoreFocusOut: true
+            }
+        );
+        if (!choice) { return; }
+        if (choice === 'Use existing virtual environment') {
+            createVenv = false;
+        }
+    }
 
-    if (!venvResult.success) {
+    let venvSuccess = true;
+    if (createVenv) {
+        log(`Creating venv at ${venvPath}...`);
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        let venvResult = await runCommand(pythonCmd, ['-m', 'venv', venvPath], getDocumentsFolder(), 60000);
+
+        if (!venvResult.success) {
+            const fallback = await vscode.window.showWarningMessage(
+                'Failed or timed out creating virtual environment. Attempt creation without pip (bypasses buggy ensurepip subprocess)?',
+                'Yes',
+                'No'
+            );
+            if (fallback === 'Yes') {
+                log('Attempting to create venv without pip...');
+                venvResult = await runCommand(pythonCmd, ['-m', 'venv', '--without-pip', venvPath], getDocumentsFolder(), 30000);
+            }
+        }
+
+        venvSuccess = venvResult.success;
+    } else {
+        log(`Using existing venv at ${venvPath}.`);
+    }
+
+    if (!venvSuccess) {
         vscode.window.showErrorMessage('Failed to create virtual environment.');
         StorageManager.getInstance().addEnvironment({
             name,
@@ -230,16 +292,23 @@ async function addEnvironment(): Promise<void> {
         return;
     }
 
-    // Install aqt package
-    log('Installing aqt (Anki) package...');
+    // Install aqt package if pip is available
     const pipPath = process.platform === 'win32'
         ? path.join(venvPath, 'Scripts', 'pip.exe')
         : path.join(venvPath, 'bin', 'pip');
 
-    await runCommand(pipPath, ['install', '--upgrade', 'pip'], venvPath);
-    const installResult = await runCommand(pipPath, ['install', 'aqt'], venvPath);
+    let status: 'ready' | 'needs-setup' | 'error' = 'needs-setup';
 
-    const status = installResult.success ? 'ready' : 'needs-setup';
+    if (fs.existsSync(pipPath)) {
+        log('Installing aqt (Anki) package...');
+        await runCommand(pipPath, ['install', '--upgrade', 'pip'], venvPath, 60000);
+        const installResult = await runCommand(pipPath, ['install', 'aqt'], venvPath, 120000);
+        status = installResult.success ? 'ready' : 'needs-setup';
+    } else {
+        log('⚠️ pip was not found in the virtual environment. Skipping automated package installation.');
+        vscode.window.showWarningMessage('Virtual environment created, but pip is not installed. You will need to install pip and "aqt" manually.');
+        status = 'needs-setup';
+    }
 
     StorageManager.getInstance().addEnvironment({
         name,
@@ -249,7 +318,7 @@ async function addEnvironment(): Promise<void> {
     });
 
     log(`✅ Environment "${name}" created!`);
-    vscode.window.showInformationMessage(`Environment "${name}" created successfully!`);
+    vscode.window.showInformationMessage(`Environment "${name}" setup completed!`);
 }
 
 async function deleteEnvironment(item: EnvironmentItem): Promise<void> {
