@@ -245,8 +245,12 @@ if ($INSTALL_MODE -eq 'FULL' -or $INSTALL_MODE -eq 'ADDON_ONLY') {
     if ($INSTALL_MODE -eq 'FULL') {
         $launchDir = Join-Path $AddonCloneDir '.vscode'
         New-Item -ItemType Directory -Path $launchDir -Force | Out-Null
+
+        $runAnkiFile = Join-Path $launchDir 'run_anki.py'
+        $runAnkiContent = "import sys`nfrom aqt import run`nsys.exit(run())`n"
+        Set-Content -Path $runAnkiFile -Value $runAnkiContent -Encoding UTF8
+
         $launchFile = Join-Path $launchDir 'launch.json'
-        $ankiPath = "$($VenvDir)\Scripts\anki.exe".Replace('\', '\\')
         $ankiBaseEscaped = $AnkiBase.Replace('\', '\\')
         $pythonPath = "$($VenvDir)\Scripts\python.exe".Replace('\', '\\')
 
@@ -259,15 +263,14 @@ if ($INSTALL_MODE -eq 'FULL' -or $INSTALL_MODE -eq 'ADDON_ONLY') {
             "type": "debugpy",
             "request": "launch",
             "stopOnEntry": false,
-            "program": "$ankiPath",
-            "cwd": "${workspaceRoot}",
+            "program": "`${workspaceFolder}/.vscode/run_anki.py",
+            "cwd": "`${workspaceFolder}",
             "python": "$pythonPath",
-            "env": {},
             "args": [
                 "-b",
                 "$ankiBaseEscaped"
             ],
-            "envFile": "${workspaceRoot}/.env"
+            "envFile": "`${workspaceFolder}/.env"
         }
     ]
 }

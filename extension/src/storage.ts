@@ -62,6 +62,10 @@ export class StorageManager {
         return StorageManager.instance;
     }
 
+    getConfigPath(): string {
+        return this.configPath;
+    }
+
     private load(): StorageData {
         try {
             if (fs.existsSync(this.configPath)) {

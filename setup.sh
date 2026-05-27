@@ -371,6 +371,13 @@ if [[ "$INSTALL_MODE" == "FULL" ]]; then
 # Generate .vscode/launch.json in addon repo
 LAUNCH_DIR="$ADDON_CLONE_DIR/.vscode"
 mkdir -p "$LAUNCH_DIR"
+
+cat > "$LAUNCH_DIR/run_anki.py" <<EOF
+import sys
+from aqt import run
+sys.exit(run())
+EOF
+
 cat > "$LAUNCH_DIR/launch.json" <<EOF
 {
     "version": "0.2.0",
@@ -380,15 +387,14 @@ cat > "$LAUNCH_DIR/launch.json" <<EOF
             "type": "debugpy",
             "request": "launch",
             "stopOnEntry": false,
-            "program": "$VENV_DIR/bin/anki",
-            "cwd": "\${workspaceRoot}",
-            "env": {},
+            "program": "\${workspaceFolder}/.vscode/run_anki.py",
+            "cwd": "\${workspaceFolder}",
             "python": "$VENV_DIR/bin/python",
             "args": [
                 "-b",
                 "$ANKI_BASE"
             ],
-            "envFile": "\${workspaceRoot}/.env"
+            "envFile": "\${workspaceFolder}/.env"
         }
     ]
 }

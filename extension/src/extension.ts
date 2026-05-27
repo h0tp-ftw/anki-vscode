@@ -1,11 +1,52 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { spawn } from 'child_process';
 
 import { WelcomeManager } from './welcome';
 import { StorageManager, EnvironmentProfile, AddonProfile } from './storage';
 import { EnvironmentsProvider, AddonsProvider, ActionsProvider, EnvironmentItem, AddonItem } from './providers/AnkiTreeProvider';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Path / filesystem helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Allowed characters for an addon folder name inside addons21.
+// Rejects path separators and traversal so the symlink target can't escape addons21.
+const ADDON_ID_RE = /^[A-Za-z0-9._-]+$/;
+function isValidAddonId(id: string): boolean {
+    return ADDON_ID_RE.test(id) && id !== '.' && id !== '..';
+}
+
+// True when `p` is a symlink (or, on Windows, a junction) that this extension
+// manages — i.e. safe to delete. Real folders return false so we don't nuke them.
+function isManagedLink(p: string): boolean {
+    try {
+        const st = fs.lstatSync(p);
+        if (st.isSymbolicLink()) { return true; }
+        if (process.platform === 'win32') {
+            // Junctions don't always report as symlinks, but readlink succeeds on them.
+            try { fs.readlinkSync(p); return true; } catch { return false; }
+        }
+        return false;
+    } catch {
+        return false;
+    }
+}
+
+// Returns lstat without following symlinks, or undefined if the path doesn't exist.
+// Used instead of existsSync so dangling symlinks are still detected.
+function tryLstat(p: string): fs.Stats | undefined {
+    try { return fs.lstatSync(p); } catch { return undefined; }
+}
+
+// Segment-aware containment check. Avoids the `startsWith` bug where
+// "/a/addon" wrongly matches "/a/addon-2".
+function isPathInsideOrEqual(child: string, parent: string): boolean {
+    const rel = path.relative(parent, child);
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
 
 // Output channel for logging
 let outputChannel: vscode.OutputChannel;
@@ -81,10 +122,12 @@ function log(message: string): void {
 }
 
 function getDocumentsFolder(): string {
-    if (process.platform === 'win32') {
-        return path.join(process.env.USERPROFILE || '', 'Documents');
-    }
-    return path.join(process.env.HOME || '', 'Documents');
+    const home = os.homedir();
+    const base = process.platform === 'win32' ? (process.env.USERPROFILE || home) : home;
+    const docs = path.join(base, 'Documents');
+    // Fall back to the home dir if ~/Documents doesn't exist, so callers that use
+    // this as a spawn cwd don't fail with ENOENT (common on Linux).
+    return fs.existsSync(docs) ? docs : home;
 }
 
 async function runCommand(command: string, args: string[], cwd: string, timeoutMs?: number): Promise<{ success: boolean; output: string }> {
@@ -92,8 +135,12 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
         log(`[Running Command] ${command} ${args.join(' ')} (cwd: ${cwd})`);
         
         let output = '';
-        const proc = spawn(command, args, { cwd, shell: true });
-        
+        // No `shell: true`: args are passed as a real argv, so paths with spaces
+        // work and untrusted input (repo URLs, package names) can't inject shell
+        // commands. Safe here because every command is git/python/cmd or an
+        // absolute .exe path — none are .cmd/.bat shims needing a shell.
+        const proc = spawn(command, args, { cwd });
+
         let timeout: NodeJS.Timeout | undefined;
         let isTimedOut = false;
         if (timeoutMs) {
@@ -376,11 +423,21 @@ async function addAddon(): Promise<void> {
         });
         localPath = cloneUri?.[0]?.fsPath ? path.join(cloneUri[0].fsPath, name) : defaultCloneDir;
 
+        // Refuse to clone over an existing file or a non-empty folder (git would
+        // fail with a cryptic error otherwise).
+        if (fs.existsSync(localPath)) {
+            const st = fs.statSync(localPath);
+            if (!st.isDirectory() || fs.readdirSync(localPath).length > 0) {
+                vscode.window.showErrorMessage(`Cannot clone: "${localPath}" already exists and is not empty.`);
+                return;
+            }
+        }
+
         // Clone
         log(`Cloning ${repoUrl} to ${localPath}...`);
-        const cloneResult = await runCommand('git', ['clone', repoUrl, localPath], getDocumentsFolder());
+        const cloneResult = await runCommand('git', ['clone', '--recursive', repoUrl, localPath], getDocumentsFolder());
         if (!cloneResult.success) {
-            vscode.window.showErrorMessage('Failed to clone repository.');
+            vscode.window.showErrorMessage('Failed to clone repository. Make sure Git is installed and the URL is correct — see the "Anki Development" output for details.');
             return;
         }
     } else {
@@ -426,9 +483,12 @@ async function addAddon(): Promise<void> {
 
     // Get addon ID (folder name in addons21)
     const addonId = await vscode.window.showInputBox({
-        prompt: 'Choose a folder name for this addon in Anki\'s addons21 directory (can be anything you want)',
+        prompt: 'Choose a folder name for this addon in Anki\'s addons21 directory',
         placeHolder: 'e.g., my-addon or 1908235722',
-        ignoreFocusOut: true
+        ignoreFocusOut: true,
+        validateInput: (v) => isValidAddonId(v.trim())
+            ? undefined
+            : 'Use only letters, numbers, dots, dashes and underscores (no slashes or "..").'
     });
     if (!addonId) { return; }
 
@@ -498,6 +558,14 @@ async function initializeAddon(item: AddonItem): Promise<void> {
         return;
     }
 
+    // Guard the addon ID before it goes into a filesystem path — an id like
+    // "../../x" would make targetLink escape addons21 and the delete below
+    // could destroy unrelated files.
+    if (!isValidAddonId(addon.addonId)) {
+        vscode.window.showErrorMessage(`Invalid addon folder name "${addon.addonId}". Edit the addon and use only letters, numbers, dots, dashes and underscores.`);
+        return;
+    }
+
     // Create symlink
     const srcDir = addon.srcSubfolder
         ? path.join(addon.localPath, addon.srcSubfolder)
@@ -513,8 +581,17 @@ async function initializeAddon(item: AddonItem): Promise<void> {
         fs.mkdirSync(addonsDir, { recursive: true });
     }
 
-    // Remove existing
-    if (fs.existsSync(targetLink)) {
+    // Remove anything already at the target. Only auto-delete links we manage;
+    // if it's a real folder (e.g. a separately installed addon), confirm first.
+    if (tryLstat(targetLink)) {
+        if (!isManagedLink(targetLink)) {
+            const choice = await vscode.window.showWarningMessage(
+                `"${targetLink}" already exists and is a real folder, not a managed link. Overwrite and permanently delete its contents?`,
+                { modal: true },
+                'Overwrite'
+            );
+            if (choice !== 'Overwrite') { return; }
+        }
         fs.rmSync(targetLink, { recursive: true, force: true });
     }
 
@@ -570,8 +647,8 @@ async function runAnki(): Promise<void> {
     // Check if we're already in the addon's workspace
     const currentWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const addonPath = addon.localPath;
-    const isInCorrectWorkspace = currentWorkspace &&
-        (currentWorkspace === addonPath || currentWorkspace.startsWith(addonPath) || addonPath.startsWith(currentWorkspace));
+    const isInCorrectWorkspace = !!currentWorkspace &&
+        (isPathInsideOrEqual(addonPath, currentWorkspace) || isPathInsideOrEqual(currentWorkspace, addonPath));
 
     if (!isInCorrectWorkspace) {
         // Ask before switching workspaces
@@ -601,19 +678,25 @@ async function runAnki(): Promise<void> {
     }
 
     // Build launch config on the fly
-    const ankiExe = process.platform === 'win32'
-        ? path.join(env.venvPath, 'Scripts', 'anki.exe')
-        : path.join(env.venvPath, 'bin', 'anki');
-
     const pythonExe = process.platform === 'win32'
         ? path.join(env.venvPath, 'Scripts', 'python.exe')
         : path.join(env.venvPath, 'bin', 'python');
+
+    const vscodePath = path.join(addonPath, '.vscode');
+    const runAnkiPath = path.join(vscodePath, 'run_anki.py');
+
+    if (!fs.existsSync(vscodePath)) {
+        fs.mkdirSync(vscodePath, { recursive: true });
+    }
+    if (!fs.existsSync(runAnkiPath)) {
+        fs.writeFileSync(runAnkiPath, 'import sys\nfrom aqt import run\nsys.exit(run())\n', 'utf-8');
+    }
 
     const launchConfig: vscode.DebugConfiguration = {
         type: 'debugpy',
         name: 'Anki Debug',
         request: 'launch',
-        program: ankiExe,
+        program: runAnkiPath,
         python: pythonExe,
         args: ['-b', env.ankiBasePath],
         cwd: addonPath,
@@ -674,8 +757,10 @@ async function gitSync(): Promise<void> {
     outputChannel.show(true);
     log(`Syncing ${addon.name}...`);
 
-    const result = await runCommand('git', ['pull'], addon.localPath);
+    const result = await runCommand('git', ['pull', '--recurse-submodules'], addon.localPath);
     if (result.success) {
+        // Ensure any newly added submodules are initialized/checked out.
+        await runCommand('git', ['submodule', 'update', '--init', '--recursive'], addon.localPath);
         vscode.window.showInformationMessage(`Synced ${addon.name}`);
     } else {
         vscode.window.showErrorMessage(`Failed to sync ${addon.name}`);
@@ -709,10 +794,6 @@ async function generateLaunchConfig(): Promise<void> {
         return;
     }
 
-    const ankiExe = process.platform === 'win32'
-        ? path.join(env.venvPath, 'Scripts', 'anki.exe')
-        : path.join(env.venvPath, 'bin', 'anki');
-
     const pythonExe = process.platform === 'win32'
         ? path.join(env.venvPath, 'Scripts', 'python.exe')
         : path.join(env.venvPath, 'bin', 'python');
@@ -724,7 +805,7 @@ async function generateLaunchConfig(): Promise<void> {
                 type: 'debugpy',
                 name: 'Anki Debug',
                 request: 'launch',
-                program: ankiExe,
+                program: '${workspaceFolder}/.vscode/run_anki.py',
                 python: pythonExe,
                 args: ['-b', env.ankiBasePath],
                 cwd: '${workspaceFolder}',
@@ -733,12 +814,27 @@ async function generateLaunchConfig(): Promise<void> {
         ]
     };
 
-    // Create .vscode folder and launch.json in addon folder
+    // Create .vscode folder, run_anki.py, and launch.json in addon folder
     const vscodePath = path.join(addon.localPath, '.vscode');
     const launchPath = path.join(vscodePath, 'launch.json');
+    const runAnkiPath = path.join(vscodePath, 'run_anki.py');
 
     if (!fs.existsSync(vscodePath)) {
         fs.mkdirSync(vscodePath, { recursive: true });
+    }
+
+    if (!fs.existsSync(runAnkiPath)) {
+        fs.writeFileSync(runAnkiPath, 'import sys\nfrom aqt import run\nsys.exit(run())\n', 'utf-8');
+    }
+
+    // Don't clobber an existing debug config without asking.
+    if (fs.existsSync(launchPath)) {
+        const choice = await vscode.window.showWarningMessage(
+            `launch.json already exists for ${addon.name}. Overwrite it?`,
+            { modal: true },
+            'Overwrite'
+        );
+        if (choice !== 'Overwrite') { return; }
     }
 
     fs.writeFileSync(launchPath, JSON.stringify(launchJson, null, 4), 'utf-8');
@@ -787,7 +883,8 @@ async function installPackage(): Promise<void> {
         ? path.join(env.venvPath, 'Scripts', 'pip.exe')
         : path.join(env.venvPath, 'bin', 'pip');
 
-    const result = await runCommand(pipPath, ['install', packageName], env.venvPath);
+    // `--` stops the package name being interpreted as a pip flag (e.g. "-r ...").
+    const result = await runCommand(pipPath, ['install', '--', packageName], env.venvPath);
 
     if (result.success) {
         vscode.window.showInformationMessage(`Installed ${packageName}`);
@@ -934,7 +1031,10 @@ async function editAddon(item: AddonItem): Promise<void> {
         const newId = await vscode.window.showInputBox({
             prompt: 'Addon folder name in addons21',
             value: addon.addonId,
-            ignoreFocusOut: true
+            ignoreFocusOut: true,
+            validateInput: (v) => isValidAddonId(v.trim())
+                ? undefined
+                : 'Use only letters, numbers, dots, dashes and underscores (no slashes or "..").'
         });
         if (newId && newId !== addon.addonId) {
             storage.updateAddon(addon.id, { addonId: newId, isInitialized: false });
@@ -959,23 +1059,12 @@ async function editAddon(item: AddonItem): Promise<void> {
 }
 
 async function openConfig(): Promise<void> {
-    const storage = StorageManager.getInstance();
-    // Get config path from storage manager
-    const configPath = path.join(
-        vscode.extensions.getExtension('h0tp-ftw.anki-vscode-setup')?.extensionUri.fsPath || '',
-        '..',
-        'globalStorage',
-        'h0tp-ftw.anki-vscode-setup',
-        'anki-dev-config.json'
-    );
+    // Use the real path the StorageManager writes to, rather than guessing — the
+    // old guess broke on VSCodium, Insiders, portable installs and remote/WSL.
+    const configPath = StorageManager.getInstance().getConfigPath();
 
-    // Try to find actual config path
-    const globalStoragePath = path.join(process.env.APPDATA || process.env.HOME || '',
-        process.platform === 'win32' ? 'Code/User/globalStorage/h0tp-ftw.anki-vscode-setup' : '.config/Code/User/globalStorage/h0tp-ftw.anki-vscode-setup');
-    const actualConfigPath = path.join(globalStoragePath, 'anki-dev-config.json');
-
-    if (fs.existsSync(actualConfigPath)) {
-        const doc = await vscode.workspace.openTextDocument(actualConfigPath);
+    if (fs.existsSync(configPath)) {
+        const doc = await vscode.workspace.openTextDocument(configPath);
         await vscode.window.showTextDocument(doc);
     } else {
         vscode.window.showWarningMessage('Config file not found. Create an environment or addon first.');
