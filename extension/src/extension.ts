@@ -148,18 +148,33 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
                 isTimedOut = true;
                 log(`[Command Timeout] Command "${command} ${args.join(' ')}" timed out after ${timeoutMs}ms. Killing process...`);
                 if (process.platform === 'win32' && proc.pid) {
-                    // Forcefully terminate process and all child processes in its tree
-                    log(`[Info] Spawning taskkill for PID ${proc.pid}...`);
-                    const killer = spawn('taskkill', ['/F', '/T', '/PID', proc.pid.toString()]);
-                    let killerStderr = '';
-                    killer.stderr.on('data', (chunk) => { killerStderr += chunk.toString(); });
-                    killer.on('error', (err) => { log(`[Error] Failed to spawn taskkill: ${err.message}`); });
-                    killer.on('close', (code) => {
-                        if (code !== 0) {
-                            log(`[Warning] taskkill exited with code ${code}. Stderr: ${killerStderr.trim()}`);
-                        } else {
-                            log(`[Info] taskkill successfully completed for PID ${proc.pid}`);
-                        }
+                    log(`[Diagnostics] Timeout hit. Running tasklist before kill...`);
+                    const preTasklist = spawn('tasklist', ['/FI', 'IMAGENAME eq python.exe']);
+                    let preOutput = '';
+                    preTasklist.stdout.on('data', (c) => { preOutput += c.toString(); });
+                    preTasklist.on('close', () => {
+                        log(`[Diagnostics] Active python processes BEFORE taskkill:\n${preOutput.trim()}`);
+                        
+                        log(`[Info] Spawning taskkill for PID ${proc.pid}...`);
+                        const killer = spawn('taskkill', ['/F', '/T', '/PID', proc.pid!.toString()]);
+                        let killerStderr = '';
+                        killer.stderr.on('data', (chunk) => { killerStderr += chunk.toString(); });
+                        killer.on('error', (err) => { log(`[Error] Failed to spawn taskkill: ${err.message}`); });
+                        killer.on('close', (code) => {
+                            if (code !== 0) {
+                                log(`[Warning] taskkill exited with code ${code}. Stderr: ${killerStderr.trim()}`);
+                            } else {
+                                log(`[Info] taskkill successfully completed for PID ${proc.pid}`);
+                            }
+                            
+                            // Check python processes again after kill
+                            const postTasklist = spawn('tasklist', ['/FI', 'IMAGENAME eq python.exe']);
+                            let postOutput = '';
+                            postTasklist.stdout.on('data', (c) => { postOutput += c.toString(); });
+                            postTasklist.on('close', () => {
+                                log(`[Diagnostics] Active python processes AFTER taskkill:\n${postOutput.trim()}`);
+                            });
+                        });
                     });
                 } else {
                     proc.kill();
