@@ -1,7 +1,8 @@
 # Environment & Credentials
 .env
 *.vsix
-anki-vscode-setup-*.vsix
+# Allow versioned release artifacts to be committed
+!extension/releases/*.vsix
 
 # Scripts (Local only)
 cycle_keys.py
