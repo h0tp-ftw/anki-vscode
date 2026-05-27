@@ -147,7 +147,12 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
             timeout = setTimeout(() => {
                 isTimedOut = true;
                 log(`[Command Timeout] Command "${command} ${args.join(' ')}" timed out after ${timeoutMs}ms. Killing process...`);
-                proc.kill();
+                if (process.platform === 'win32' && proc.pid) {
+                    // Forcefully terminate process and all child processes in its tree
+                    spawn('taskkill', ['/F', '/T', '/PID', proc.pid.toString()]);
+                } else {
+                    proc.kill();
+                }
                 resolve({ success: false, output: output + '\n[ERROR] Command timed out.' });
             }, timeoutMs);
         }
@@ -178,6 +183,23 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
             }
         });
     });
+}
+
+async function rmSyncWithRetry(dirPath: string, retries = 5, delayMs = 500): Promise<void> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            if (fs.existsSync(dirPath)) {
+                fs.rmSync(dirPath, { recursive: true, force: true });
+            }
+            return;
+        } catch (err) {
+            if (i === retries - 1) {
+                throw err;
+            }
+            log(`[Info] rmSync failed (attempt ${i + 1}/${retries}), retrying in ${delayMs}ms... Error: ${err}`);
+            await new Promise((r) => setTimeout(r, delayMs));
+        }
+    }
 }
 
 function refreshViews(): void {
@@ -323,7 +345,7 @@ async function addEnvironment(): Promise<void> {
                 if (fs.existsSync(venvPath)) {
                     log(`Cleaning up partial venv at ${venvPath}...`);
                     try {
-                        fs.rmSync(venvPath, { recursive: true, force: true });
+                        await rmSyncWithRetry(venvPath);
                         log('Partial venv removed.');
                     } catch (rmErr) {
                         log(`[Warning] Could not fully clean up partial venv: ${rmErr}. Proceeding anyway...`);

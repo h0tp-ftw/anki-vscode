@@ -79,7 +79,7 @@ if ($DryRun) {
 # 6. Git add, commit release artifact, tag, push
 Write-Host "[4/4] Tagging and pushing..." -ForegroundColor Green
 
-git -C $PSScriptRoot add "extension/releases/$vsix" ".gitignore" "release.ps1"
+git -C $PSScriptRoot add "extension/releases/$vsix" ".gitignore" "release.ps1" "extension/package.json" "extension/package-lock.json" "extension/src/extension.ts"
 git -C $PSScriptRoot diff --cached --quiet
 if ($LASTEXITCODE -ne 0) {
     git -C $PSScriptRoot commit -m "release: v$version"
