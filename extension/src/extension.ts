@@ -149,7 +149,18 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
                 log(`[Command Timeout] Command "${command} ${args.join(' ')}" timed out after ${timeoutMs}ms. Killing process...`);
                 if (process.platform === 'win32' && proc.pid) {
                     // Forcefully terminate process and all child processes in its tree
-                    spawn('taskkill', ['/F', '/T', '/PID', proc.pid.toString()]);
+                    log(`[Info] Spawning taskkill for PID ${proc.pid}...`);
+                    const killer = spawn('taskkill', ['/F', '/T', '/PID', proc.pid.toString()]);
+                    let killerStderr = '';
+                    killer.stderr.on('data', (chunk) => { killerStderr += chunk.toString(); });
+                    killer.on('error', (err) => { log(`[Error] Failed to spawn taskkill: ${err.message}`); });
+                    killer.on('close', (code) => {
+                        if (code !== 0) {
+                            log(`[Warning] taskkill exited with code ${code}. Stderr: ${killerStderr.trim()}`);
+                        } else {
+                            log(`[Info] taskkill successfully completed for PID ${proc.pid}`);
+                        }
+                    });
                 } else {
                     proc.kill();
                 }
@@ -199,6 +210,29 @@ async function rmSyncWithRetry(dirPath: string, retries = 5, delayMs = 500): Pro
             log(`[Info] rmSync failed (attempt ${i + 1}/${retries}), retrying in ${delayMs}ms... Error: ${err}`);
             await new Promise((r) => setTimeout(r, delayMs));
         }
+    }
+}
+
+async function cleanOrRenameVenvDir(dirPath: string): Promise<void> {
+    if (!fs.existsSync(dirPath)) {
+        return;
+    }
+    const tempPath = `${dirPath}-${Date.now()}-deleted`;
+    try {
+        // Try renaming it first to free up the original path immediately
+        fs.renameSync(dirPath, tempPath);
+        log(`[Info] Renamed partial venv to ${tempPath}`);
+        // Now try to delete the temp path in the background/safely
+        try {
+            await rmSyncWithRetry(tempPath, 3, 200);
+            log(`[Info] Cleaned up temporary directory ${tempPath}`);
+        } catch (rmErr: any) {
+            log(`[Warning] Could not immediately delete ${tempPath}: ${rmErr.message}. It will remain locked temporarily.`);
+        }
+    } catch (renameErr: any) {
+        log(`[Warning] Rename failed: ${renameErr.message}. Falling back to direct deletion...`);
+        // Fall back to direct cleanup
+        await rmSyncWithRetry(dirPath, 5, 500);
     }
 }
 
@@ -324,6 +358,9 @@ async function addEnvironment(): Promise<void> {
         if (!choice) { return; }
         if (choice === 'Use existing virtual environment') {
             createVenv = false;
+        } else if (choice === 'Recreate / Overwrite') {
+            log(`Cleaning up existing venv at ${venvPath} before recreation...`);
+            await cleanOrRenameVenvDir(venvPath);
         }
     }
 
@@ -344,12 +381,7 @@ async function addEnvironment(): Promise<void> {
                 // "Permission denied" errors on partially-written files (e.g. Scripts/python.exe)
                 if (fs.existsSync(venvPath)) {
                     log(`Cleaning up partial venv at ${venvPath}...`);
-                    try {
-                        await rmSyncWithRetry(venvPath);
-                        log('Partial venv removed.');
-                    } catch (rmErr) {
-                        log(`[Warning] Could not fully clean up partial venv: ${rmErr}. Proceeding anyway...`);
-                    }
+                    await cleanOrRenameVenvDir(venvPath);
                 }
                 log('Attempting to create venv without pip...');
                 venvResult = await runCommand(pythonCmd, ['-m', 'venv', '--without-pip', venvPath], getDocumentsFolder(), 30000);
