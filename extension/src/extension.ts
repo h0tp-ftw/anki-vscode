@@ -318,6 +318,17 @@ async function addEnvironment(): Promise<void> {
                 'No'
             );
             if (fallback === 'Yes') {
+                // Clean up the partial venv left by the killed process to avoid
+                // "Permission denied" errors on partially-written files (e.g. Scripts/python.exe)
+                if (fs.existsSync(venvPath)) {
+                    log(`Cleaning up partial venv at ${venvPath}...`);
+                    try {
+                        fs.rmSync(venvPath, { recursive: true, force: true });
+                        log('Partial venv removed.');
+                    } catch (rmErr) {
+                        log(`[Warning] Could not fully clean up partial venv: ${rmErr}. Proceeding anyway...`);
+                    }
+                }
                 log('Attempting to create venv without pip...');
                 venvResult = await runCommand(pythonCmd, ['-m', 'venv', '--without-pip', venvPath], getDocumentsFolder(), 30000);
             }
